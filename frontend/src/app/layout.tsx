@@ -4,6 +4,9 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'Photo Day Dashboard',
   description: 'Your photography conditions at a glance',
+  icons: {
+    icon: '/favicon.svg',
+  },
 };
 
 export default function RootLayout({

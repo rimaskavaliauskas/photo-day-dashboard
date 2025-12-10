@@ -13,6 +13,37 @@ import { runYouTubeSync } from './cron/youtube-sync';
 import { syncPlacesFromSheet } from './lib/sheets-sync';
 
 // =============================================================================
+// Config helpers
+// =============================================================================
+function getConfigStatus(env: Env) {
+  const placesConfigured = Boolean(env.GOOGLE_PLACES_API_KEY);
+  const youtubeConfigured = Boolean(env.YOUTUBE_API_KEY && env.YOUTUBE_CHANNELS);
+  const sheetConfigured = Boolean(
+    env.GOOGLE_SERVICE_ACCOUNT_EMAIL &&
+    env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY &&
+    env.GOOGLE_SHEET_ID
+  );
+  const tasksSheetConfigured = Boolean(env.TASKS_SHEET_URL);
+
+  const warnings: string[] = [];
+  if (!placesConfigured) warnings.push('GOOGLE_PLACES_API_KEY missing – skipping place discovery');
+  if (!youtubeConfigured) warnings.push('YouTube sync disabled – YOUTUBE_API_KEY or channels missing');
+  if (!sheetConfigured) warnings.push('Sheets credentials missing – place sync/pinning disabled');
+  if (!tasksSheetConfigured) warnings.push('TASKS_SHEET_URL missing – tasks sync disabled');
+
+  return {
+    placesConfigured,
+    youtubeConfigured,
+    sheetConfigured,
+    tasksSheetConfigured,
+    defaultLat: env.DEFAULT_LAT,
+    defaultLng: env.DEFAULT_LNG,
+    radiusKm: env.DEFAULT_RADIUS_KM,
+    warnings,
+  };
+}
+
+// =============================================================================
 // CORS Headers - Allow frontend to call our API
 // =============================================================================
 const corsHeaders = {
@@ -141,9 +172,48 @@ export default {
         return jsonResponse({ videos: videos.results || [] });
       }
 
+      // =======================================================================
+      // Admin sync routes (local/dev convenience)
+      // =======================================================================
+      if (path === '/api/admin/sync-places-weather' && request.method === 'POST') {
+        const config = getConfigStatus(env);
+        if (!config.placesConfigured) {
+          return errorResponse('GOOGLE_PLACES_API_KEY missing', 400);
+        }
+        await runPlacesAndWeatherSync(env);
+        return jsonResponse({ success: true, message: 'Places & weather sync completed' });
+      }
+
+      if (path === '/api/admin/sync-youtube' && request.method === 'POST') {
+        const config = getConfigStatus(env);
+        if (!config.youtubeConfigured) {
+          return errorResponse('YouTube API key or channels missing', 400);
+        }
+        await runYouTubeSync(env);
+        return jsonResponse({ success: true, message: 'YouTube sync completed' });
+      }
+
+      if (path === '/api/admin/sync-all' && request.method === 'POST') {
+        const config = getConfigStatus(env);
+        if (!config.placesConfigured) {
+          return errorResponse('GOOGLE_PLACES_API_KEY missing', 400);
+        }
+        if (!config.youtubeConfigured) {
+          return errorResponse('YouTube API key or channels missing', 400);
+        }
+        await runPlacesAndWeatherSync(env);
+        await runYouTubeSync(env);
+        return jsonResponse({ success: true, message: 'Full sync completed' });
+      }
+
       // Route: GET /api/health - Health check
       if (path === '/api/health') {
-        return jsonResponse({ status: 'ok', timestamp: new Date().toISOString() });
+        const config = getConfigStatus(env);
+    return jsonResponse({
+          status: 'ok',
+          timestamp: new Date().toISOString(),
+          config,
+        });
       }
 
       // 404 for unknown routes

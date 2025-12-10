@@ -40,12 +40,13 @@ async function syncPlaces(env: Env, lat: number, lng: number, radiusKm: number):
   }
   
   // Place types interesting for photography
+  // Use only supported primary types for Places API (New)
   const includedTypes = [
-    'park',
-    'natural_feature', 
     'tourist_attraction',
-    'point_of_interest',
-    'establishment',
+    'park',
+    'art_gallery',
+    'museum',
+    'campground',
   ];
   
   // Google Places API (New) - Nearby Search

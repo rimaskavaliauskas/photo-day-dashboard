@@ -41,7 +41,11 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 const WeatherChart: React.FC<WeatherChartProps> = ({ data }) => {
     return (
-        <ResponsiveContainer width="100%" height={300}>
+        <ResponsiveContainer
+            width="100%"
+            height={300}
+            style={{ minWidth: 0, minHeight: 0 }}
+        >
             <AreaChart
                 data={data}
                 margin={{ top: 10, right: 10, left: -20, bottom: 0 }}

@@ -1,4 +1,4 @@
-import { fetchMyPlaces, fetchVideos } from '@/lib/api';
+import { fetchMyPlaces, fetchVideos, fetchDashboard, DashboardData } from '@/lib/api';
 import { MyPlacesPage } from '@/components/MyPlacesPage';
 
 // Disable caching for this page - always fetch fresh data
@@ -8,13 +8,16 @@ export default async function DashboardPage() {
   // Fetch data from worker (server-side)
   let myPlaces;
   let videos;
+  let dashboardData: DashboardData | null = null;
   let error: string | null = null;
 
   try {
+    const dashboardPromise = fetchDashboard();
     [myPlaces, videos] = await Promise.all([
       fetchMyPlaces(),
       fetchVideos(),
     ]);
+    dashboardData = await dashboardPromise;
   } catch (err) {
     error = err instanceof Error ? err.message : 'Failed to load dashboard';
     console.error('Dashboard fetch error:', err);
@@ -39,6 +42,8 @@ export default async function DashboardPage() {
     <MyPlacesPage
       initialPlaces={myPlaces || []}
       initialVideos={videos || []}
+      nearbyPlaces={dashboardData?.places || []}
+      currentLocation={dashboardData?.location}
     />
   );
 }

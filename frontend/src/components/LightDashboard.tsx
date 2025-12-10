@@ -20,10 +20,8 @@ import {
 import WeatherChart from './WeatherChart';
 import ScoreGauge from './ScoreGauge';
 
+// Import types only - we won't use the fetch functions
 import {
-    fetchDashboard,
-    fetchMyPlaces,
-    fetchVideos,
     DashboardData,
     MyPlaceWithData,
     YouTubeVideo,
@@ -33,58 +31,64 @@ import {
 
 /**
  * LightDashboard – a responsive dashboard layout based on the provided Figma node.
- * Now connected to real Photo Day API data.
+ * Uses HARDCODED MOCK DATA for design verification.
  */
 
 const LightDashboard = () => {
-    const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
-    const [myPlaces, setMyPlaces] = useState<MyPlaceWithData[]>([]);
-    const [videos, setVideos] = useState<YouTubeVideo[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    // HARDCODED MOCK DATA FOR DEMO/DESIGN VERIFICATION
+    const MOCK_DATA: DashboardData = {
+        location: { lat: 54.6872, lng: 25.2797, source: 'mock' },
+        sunWindows: {
+            today: {
+                id: 1, date: '2025-12-08', lat: 54.6872, lng: 25.2797,
+                sunrise: '2025-12-08T08:30:00', sunset: '2025-12-08T16:00:00',
+                golden_morning_start: '2025-12-08T08:00:00', golden_morning_end: '2025-12-08T09:00:00',
+                golden_evening_start: '2025-12-08T15:00:00', golden_evening_end: '2025-12-08T16:30:00',
+                blue_morning_start: null, blue_morning_end: null, blue_evening_start: null, blue_evening_end: null
+            },
+            tomorrow: null
+        },
+        weather: {
+            current: { id: 0, date_time: new Date().toISOString(), lat: 54.68, lng: 25.27, clouds: 10, precip: 0, visibility: 10, temp: 15, photoday_score: 90 },
+            hourly: Array.from({ length: 24 }, (_, i) => ({
+                id: i,
+                date_time: new Date(Date.now() + i * 3600000).toISOString(),
+                lat: 54.68,
+                lng: 25.27,
+                clouds: i < 5 ? 10 : i < 12 ? 80 : 0,
+                precip: 0, visibility: 10,
+                temp: 20 - (i * 0.5),
+                photoday_score: i > 15 ? 95 : 50
+            })),
+            photoDayScore: 85
+        },
+        places: [
+            { id: 1, place_id: "p1", name: "Gediminas Tower", lat: 54.68, lng: 25.27, types: "landmark", rating: 4.8, photo_reference: null, photo_url: null, last_seen_at: "", distance_km: 1.2 },
+            { id: 2, place_id: "p2", name: "Trakai Castle", lat: 54.68, lng: 25.27, types: "castle", rating: 4.9, photo_reference: null, photo_url: null, last_seen_at: "", distance_km: 25.5 },
+        ],
+        taskWindows: [],
+        videos: []
+    };
 
-    useEffect(() => {
-        async function loadData() {
-            try {
-                setLoading(true);
-                // Fetch all data in parallel
-                const [dash, places, vids] = await Promise.all([
-                    fetchDashboard(),
-                    fetchMyPlaces(),
-                    fetchVideos()
-                ]);
-                setDashboardData(dash);
-                setMyPlaces(places);
-                setVideos(vids);
-            } catch (err) {
-                console.error("Failed to load dashboard data:", err);
-                setError("Failed to load data. Backend might be unreachable.");
-            } finally {
-                setLoading(false);
-            }
+    // MOCK PLACES DATA
+    const MOCK_MY_PLACES: MyPlaceWithData[] = [
+        {
+            place: { id: 1, name: "Gediminas Tower", lat: 54.68, lng: 25.27, active: 1, created_at: "", updated_at: "", notes: "" },
+            forecasts: [{ id: 1, place_id: 1, date: "2025-12-08", sunrise: null, sunset: null, golden_morning_start: null, golden_morning_end: null, golden_evening_start: null, golden_evening_end: null, blue_morning_start: null, blue_morning_end: null, blue_evening_start: null, blue_evening_end: null, morning_clouds: 10, evening_clouds: 0, sky_open_morning: 1, sky_open_evening: 1 }],
+            nearby: []
+        },
+        {
+            place: { id: 2, name: "Trakai Castle", lat: 54.68, lng: 25.27, active: 1, created_at: "", updated_at: "", notes: "" },
+            forecasts: [{ id: 2, place_id: 2, date: "2025-12-08", sunrise: null, sunset: null, golden_morning_start: null, golden_morning_end: null, golden_evening_start: null, golden_evening_end: null, blue_morning_start: null, blue_morning_end: null, blue_evening_start: null, blue_evening_end: null, morning_clouds: 80, evening_clouds: 90, sky_open_morning: 0, sky_open_evening: 0 }],
+            nearby: []
         }
+    ];
 
-        loadData();
-    }, []);
-
-    if (loading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-[#f1f1f1] text-[#333333]">
-                <div className="animate-pulse flex flex-col items-center">
-                    <div className="w-12 h-12 bg-gray-300 rounded-full mb-4"></div>
-                    <p>Loading Dashboard...</p>
-                </div>
-            </div>
-        );
-    }
-
-    if (error) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-[#f1f1f1] text-red-500">
-                <p>{error}</p>
-            </div>
-        );
-    }
+    const [dashboardData, setDashboardData] = useState<DashboardData | null>(MOCK_DATA);
+    const [myPlaces, setMyPlaces] = useState<MyPlaceWithData[]>(MOCK_MY_PLACES);
+    const [videos, setVideos] = useState<YouTubeVideo[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     // Derived Data for KPIs
     const photoScore = dashboardData?.weather.photoDayScore ?? 0;
@@ -93,7 +97,7 @@ const LightDashboard = () => {
         : 'None';
 
     const placesCount = myPlaces.length;
-    const recentVideosCount = videos.length; // Simply showing total count of fetched videos
+    const recentVideosCount = videos.length;
 
     return (
         <div className="min-h-screen bg-[#f1f1f1] text-[#333333] font-sans">
@@ -128,7 +132,7 @@ const LightDashboard = () => {
                     <div>
                         <h1 className="text-2xl font-bold text-[#333333]">Photo Day</h1>
                         <p className="text-sm text-[#666666]">
-                            {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' })}
+                            {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' })} (v2.2 Mock)
                         </p>
                     </div>
 
@@ -260,24 +264,25 @@ const LightDashboard = () => {
                         <div className="h-80 bg-gray-50 overflow-y-auto rounded p-2">
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {videos.map((video, idx) => (
-                                    <a key={idx} href={`https://www.youtube.com/watch?v=${video.video_id}`} target="_blank" rel="noreferrer" className="block bg-white rounded shadow-sm overflow-hidden hover:shadow-md transition">
-                                        {video.thumbnail_url ? (
-                                            <img src={video.thumbnail_url} alt={video.title} className="w-full h-32 object-cover" />
-                                        ) : (
-                                            <div className="w-full h-32 bg-gray-200 flex items-center justify-center">
-                                                <Video className="w-8 h-8 text-gray-400" />
-                                            </div>
+                                    <div key={idx} className="bg-white p-3 rounded shadow-sm border border-gray-100 flex flex-col">
+                                        {video.thumbnail_url && (
+                                            <img src={video.thumbnail_url} alt={video.title} className="w-full h-32 object-cover rounded mb-2" />
                                         )}
-                                        <div className="p-3">
-                                            <h3 className="text-sm font-medium text-[#333333] line-clamp-2" title={video.title}>{video.title}</h3>
-                                            <p className="text-xs text-gray-500 mt-1">{video.channel_id}</p>
+                                        <h3 className="text-sm font-semibold text-[#333333] line-clamp-2">{video.title}</h3>
+                                        <div className="mt-auto pt-2 flex justify-between items-center text-xs text-gray-500">
+                                            <span>{new Date(video.published_at || '').toLocaleDateString()}</span>
+                                            <a href={`https://www.youtube.com/watch?v=${video.video_id}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 flex items-center">
+                                                Watch <ArrowUpRight className="w-3 h-3 ml-1" />
+                                            </a>
                                         </div>
-                                    </a>
+                                    </div>
                                 ))}
+                                {videos.length === 0 && (
+                                    <div className="col-span-full text-center text-gray-400 py-10">
+                                        No videos found
+                                    </div>
+                                )}
                             </div>
-                            {videos.length === 0 && (
-                                <div className="text-center text-gray-400 mt-32">No videos found</div>
-                            )}
                         </div>
                     </div>
                 </section>
