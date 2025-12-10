@@ -1,0 +1,7 @@
+task_id,title,location,radius_km,condition,time_window,notes,active
+task-001,Sunset portrait by the river,"54.6892, 25.2798",5,golden-hour-evening,evening_only,Look for nice reflections on the water,TRUE
+task-002,Morning mist in the park,"54.7000, 25.2500",10,fog,morning_only,Best after cold nights,TRUE
+task-003,Street photography downtown,Vilnius Old Town,3,overcast,any_day,Soft light is best for street portraits,TRUE
+task-004,Landscape at viewpoint,"54.6800, 25.3000",2,clear-any,weekend_only,Need clear skies for distant views,TRUE
+task-005,Blue hour cityscape,"54.6872, 25.2797",1,blue-hour-evening,evening_only,Capture city lights with blue sky,TRUE
+task-006,Forest path photos,Vingis Park,5,any,morning_only,Light rays through trees in morning,FALSE

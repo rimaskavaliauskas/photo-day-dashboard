@@ -1,0 +1,7 @@
+GOOGLE_PLACES_API_KEY=your-google-places-api-key
+YOUTUBE_API_KEY=your-youtube-api-key
+TASKS_SHEET_URL=https://docs.google.com/spreadsheets/d/.../pub?output=csv
+
+# Optional / unused but reserved
+WEATHER_API_KEY=
+

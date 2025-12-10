@@ -1,0 +1,44 @@
+name = "photo-day-worker"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+# D1 Database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "photo-day-db"
+database_id = "YOUR_D1_DATABASE_ID"  # Replace after running: wrangler d1 create photo-day-db
+
+# Scheduled cron triggers
+[triggers]
+crons = [
+  "0 */6 * * *"    # Every 6 hours: sync sheets, weather, places, YouTube
+]
+
+# Environment variables (non-secret defaults)
+[vars]
+DEFAULT_LAT = "54.6872"
+DEFAULT_LNG = "25.2797"
+DEFAULT_RADIUS_KM = "30"
+PLACES_SEARCH_RADIUS_KM = "10"
+
+# YouTube channels to sync (user's photography channels)
+# - UCfhW84xfA6gEc4hDK90rR1Q (user provided)
+# - UCoJP9pYqZjiJOlR4UWdPhow (PetaPixel)
+# - UCxK-g62x0UCPPZnseZzeo5w (Christopher Frost)
+# - UCYwqG5Di3v8UxR4TNK4dewA (Julia Trotti)
+YOUTUBE_CHANNELS = "UCfhW84xfA6gEc4hDK90rR1Q,UCoJP9pYqZjiJOlR4UWdPhow,UCxK-g62x0UCPPZnseZzeo5w,UCYwqG5Di3v8UxR4TNK4dewA"
+
+# Development overrides
+[env.dev]
+name = "photo-day-worker-dev"
+
+# Production overrides
+[env.production]
+name = "photo-day-worker"
+
+# Secrets (set via `wrangler secret put`):
+# - GOOGLE_PLACES_API_KEY
+# - YOUTUBE_API_KEY
+# - GOOGLE_SERVICE_ACCOUNT_EMAIL
+# - GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY
+# - GOOGLE_SHEET_ID

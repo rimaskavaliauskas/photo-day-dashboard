@@ -1,0 +1,393 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Custom utility classes */
+@layer components {
+  .card {
+    @apply bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden;
+  }
+  
+  .card-header {
+    @apply px-4 py-3 border-b border-zinc-800 font-medium text-zinc-300;
+  }
+  
+  .card-body {
+    @apply p-4;
+  }
+  
+  .score-badge {
+    @apply inline-flex items-center justify-center w-10 h-10 rounded-full font-bold text-sm;
+  }
+  
+  .score-excellent {
+    @apply bg-green-500/20 text-green-400 border border-green-500/30;
+  }
+  
+  .score-good {
+    @apply bg-yellow-500/20 text-yellow-400 border border-yellow-500/30;
+  }
+  
+  .score-fair {
+    @apply bg-orange-500/20 text-orange-400 border border-orange-500/30;
+  }
+  
+  .score-poor {
+    @apply bg-red-500/20 text-red-400 border border-red-500/30;
+  }
+}
+
+/* Smooth transitions */
+* {
+  transition-property: background-color, border-color, color;
+  transition-duration: 150ms;
+}
+
+/* =============================================================================
+   New Dashboard Styles
+   ============================================================================= */
+
+.dashboard {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.dashboard-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.dashboard-header h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.dashboard-header .subtitle {
+  color: #a1a1aa;
+  font-size: 1rem;
+}
+
+.section {
+  margin-bottom: 2.5rem;
+}
+
+.section-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #e4e4e7;
+  margin-bottom: 1rem;
+}
+
+.section-subtitle {
+  font-size: 1rem;
+  font-weight: 500;
+  color: #d4d4d8;
+  margin-bottom: 0.5rem;
+}
+
+.section-desc {
+  color: #71717a;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+/* My Places Section */
+.my-places-section .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.btn-sync, .btn-check-now {
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid #3f3f46;
+  background: #27272a;
+  color: #e4e4e7;
+}
+
+.btn-sync:hover, .btn-check-now:hover {
+  background: #3f3f46;
+}
+
+.btn-sync:disabled, .btn-check-now:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.places-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+}
+
+.place-card {
+  background: linear-gradient(145deg, #18181b, #27272a);
+  border: 1px solid #3f3f46;
+  border-radius: 1rem;
+  padding: 1.25rem;
+}
+
+.place-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+}
+
+.place-name {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #fafafa;
+}
+
+.place-coords {
+  font-size: 0.75rem;
+  color: #71717a;
+  margin-bottom: 0.5rem;
+}
+
+.place-notes {
+  font-size: 0.875rem;
+  color: #a1a1aa;
+  margin-bottom: 0.75rem;
+}
+
+.badge-pinned {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  background: #14532d;
+  color: #4ade80;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+/* Forecasts */
+.forecasts {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #3f3f46;
+}
+
+.forecasts h4 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #d4d4d8;
+  margin-bottom: 0.75rem;
+}
+
+.forecast-row {
+  background: #1f1f23;
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.forecast-date {
+  font-weight: 600;
+  color: #fafafa;
+  margin-bottom: 0.5rem;
+}
+
+.forecast-times {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+}
+
+.golden-hour, .blue-hour {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.golden-hour .label, .blue-hour .label {
+  color: #71717a;
+}
+
+.golden-hour .time, .blue-hour .time {
+  color: #e4e4e7;
+}
+
+.sky-status {
+  font-size: 1rem;
+}
+
+.clouds-info {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: #71717a;
+}
+
+.no-forecast {
+  color: #71717a;
+  font-size: 0.875rem;
+  font-style: italic;
+}
+
+/* Discovered Places */
+.discovered-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+
+.discovered-card {
+  background: #18181b;
+  border: 1px solid #3f3f46;
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+
+.discovered-card.pinned {
+  border-color: #22c55e;
+}
+
+.discovered-card .card-image {
+  height: 120px;
+  overflow: hidden;
+}
+
+.discovered-card .card-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.discovered-card .card-content {
+  padding: 0.75rem;
+}
+
+.discovered-card .card-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #fafafa;
+  margin-bottom: 0.25rem;
+}
+
+.discovered-card .card-meta {
+  display: flex;
+  gap: 0.75rem;
+  font-size: 0.75rem;
+  color: #a1a1aa;
+  margin-bottom: 0.25rem;
+}
+
+.discovered-card .card-types {
+  font-size: 0.75rem;
+  color: #71717a;
+  margin-bottom: 0.5rem;
+}
+
+.btn-pin {
+  width: 100%;
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid #3f3f46;
+  background: #27272a;
+  color: #e4e4e7;
+}
+
+.btn-pin:hover:not(:disabled) {
+  background: #3f3f46;
+  border-color: #22c55e;
+}
+
+.btn-pin.pinned {
+  background: #14532d;
+  border-color: #22c55e;
+  color: #4ade80;
+}
+
+.btn-pin:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Error state */
+.error-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  text-align: center;
+}
+
+.error-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.error-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.error-message {
+  color: #a1a1aa;
+  max-width: 28rem;
+}
+
+.error-url {
+  font-size: 0.875rem;
+  color: #71717a;
+  margin-top: 1rem;
+}
+
+/* Empty state */
+.empty-state {
+  text-align: center;
+  padding: 3rem;
+  background: #18181b;
+  border-radius: 1rem;
+  border: 1px dashed #3f3f46;
+}
+
+.empty-state .empty-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.empty-state h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+  color: #a1a1aa;
+  margin-bottom: 0.5rem;
+}
+
+.empty-state code {
+  background: #27272a;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+}
