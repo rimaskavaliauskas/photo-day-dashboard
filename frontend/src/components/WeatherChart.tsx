@@ -44,7 +44,6 @@ const WeatherChart: React.FC<WeatherChartProps> = ({ data }) => {
         <ResponsiveContainer
             width="100%"
             height={300}
-            style={{ minWidth: 0, minHeight: 0 }}
         >
             <AreaChart
                 data={data}
