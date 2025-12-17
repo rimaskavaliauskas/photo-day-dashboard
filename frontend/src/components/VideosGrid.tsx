@@ -11,7 +11,7 @@ export function VideosGrid({ videos }: VideosGridProps) {
   if (videos.length === 0) {
     return null;
   }
-  
+
   return (
     <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
       {videos.slice(0, 8).map((video) => (
@@ -70,5 +70,66 @@ function VideoCard({ video }: { video: YouTubeVideo }) {
         )}
       </div>
     </a>
+  );
+}
+
+function ChannelCard({
+  channel,
+  expanded,
+  onToggle,
+  thumbnail,
+}: {
+  channel: YouTubeChannelStats;
+  expanded: boolean;
+  onToggle: () => void;
+  thumbnail: string | null;
+}) {
+  return (
+    <div className="card p-3 flex flex-col gap-2">
+      <div className="relative aspect-video bg-zinc-900 rounded-md overflow-hidden border border-zinc-800">
+        {thumbnail ? (
+          <Image
+            src={thumbnail}
+            alt="Channel thumbnail"
+            fill
+            className="object-cover"
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center text-zinc-600 text-lg">
+            🎬
+          </div>
+        )}
+      </div>
+
+      <div className="flex items-center justify-between w-full">
+        <div className="text-sm font-semibold text-zinc-100 truncate" title={channel.channel_id}>
+          Channel
+        </div>
+        <button
+          className="text-xs text-blue-300 underline"
+          onClick={onToggle}
+        >
+          {expanded ? 'Hide stats' : 'Show stats'}
+        </button>
+      </div>
+
+      {expanded && (
+        <div className="mt-1 flex flex-col gap-1 text-xs text-zinc-400">
+          <div>Total videos: {channel.video_count}</div>
+          <div>Last upload: {channel.last_published_at ? formatDate(channel.last_published_at) : 'n/a'}</div>
+          <div>Last 30d: {channel.videos_last_30d}</div>
+          <div>Last 7d: {channel.videos_last_7d}</div>
+          <div>
+            Activity:{' '}
+            {channel.videos_last_30d > 4
+              ? 'High'
+              : channel.videos_last_30d > 1
+              ? 'Medium'
+              : 'Low'}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

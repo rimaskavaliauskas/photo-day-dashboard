@@ -7,7 +7,8 @@ import {
     PlaceWithDistance,
     fetchMyPlaces, 
     syncFromSheet,
-    checkNow 
+    checkNow,
+    deleteMyPlace 
 } from '@/lib/api';
 import { PlaceRow } from './PlaceRow';
 import { DiscoveredPlaces } from './DiscoveredPlaces';
@@ -31,6 +32,7 @@ export function MyPlacesPage({
     const [videos] = useState(initialVideos);
     const [syncing, setSyncing] = useState(false);
     const [checkingId, setCheckingId] = useState<number | null>(null);
+    const [deletingId, setDeletingId] = useState<number | null>(null);
 
     const handleRefresh = useCallback(async () => {
         try {
@@ -45,13 +47,26 @@ export function MyPlacesPage({
         setSyncing(true);
         try {
             const result = await syncFromSheet();
-            alert(`Synced ${result.synced} places from Google Sheet`);
+            alert(`Synced ${result.synced} places from Google Sheet. Deleted ${'deleted' in result ? (result as any).deleted : 0}.`);
             handleRefresh();
         } catch (error) {
             console.error('Sync error:', error);
             alert('Failed to sync from Google Sheet');
         } finally {
             setSyncing(false);
+        }
+    };
+
+    const handleDelete = async (placeId: number) => {
+        setDeletingId(placeId);
+        try {
+            await deleteMyPlace(placeId);
+            handleRefresh();
+        } catch (error) {
+            console.error('Delete error:', error);
+            alert('Failed to delete place');
+        } finally {
+            setDeletingId(null);
         }
     };
 
@@ -114,6 +129,9 @@ export function MyPlacesPage({
                                 placeData={placeData}
                                 onCheckNow={handleCheckNow}
                                 isChecking={checkingId === placeData.place.id}
+                                onDelete={() => handleDelete(placeData.place.id)}
+                                isDeleting={deletingId === placeData.place.id}
+                                onPinned={handleRefresh}
                             />
                         ))}
                     </div>

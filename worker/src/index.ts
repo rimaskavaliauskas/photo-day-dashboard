@@ -7,6 +7,7 @@ import {
   handleCheckNow,
   handleGetNearby,
   handlePinPlace,
+  handleDeleteMyPlace,
 } from './handlers/my-places';
 import { runPlacesAndWeatherSync } from './cron/places-and-weather';
 import { runYouTubeSync } from './cron/youtube-sync';
@@ -134,6 +135,14 @@ export default {
       if (path === '/api/my-places/sync' && request.method === 'POST') {
         const result = await handleSyncFromSheet(env);
         return jsonResponse(result);
+      }
+
+      // Route: DELETE /api/my-places/:id - Remove a place
+      const deleteMatch = path.match(/^\/api\/my-places\/(\d+)$/);
+      if (deleteMatch && request.method === 'DELETE') {
+        const placeId = parseInt(deleteMatch[1], 10);
+        await handleDeleteMyPlace(env, placeId);
+        return jsonResponse({ success: true });
       }
 
       // Route: POST /api/my-places/:id/check-now - Immediate weather check

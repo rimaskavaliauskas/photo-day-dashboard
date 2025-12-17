@@ -1,6 +1,147 @@
 import { Env, MyPlace, DiscoveredPlace, PlaceForecast } from '../types';
-import { syncPlacesFromSheet, appendPlaceToSheet } from '../lib/sheets-sync';
+import { syncPlacesFromSheet, appendPlaceToSheet, deletePlaceFromSheet } from '../lib/sheets-sync';
 import { calculateSunWindows, toISOString } from '../lib/sun';
+import { haversineDistance } from '../lib/geo';
+
+// Supported types for photo-worthy spots (aligned with Google Places API "New")
+const DISCOVERED_TYPES = [
+    'tourist_attraction',
+    'park',
+    'art_gallery',
+    'museum',
+    'campground',
+];
+
+// Default search radius (km) if env.PLACES_SEARCH_RADIUS_KM is not set
+const DEFAULT_SEARCH_RADIUS_KM = 10;
+
+async function fetchAndStoreNearbyPlaces(env: Env, place: MyPlace): Promise<DiscoveredPlace[]> {
+    const apiKey = env.GOOGLE_PLACES_API_KEY;
+    if (!apiKey) {
+        console.warn('GOOGLE_PLACES_API_KEY not set, skipping nearby photos fetch');
+        return [];
+    }
+
+    const radiusKm = parseFloat(env.PLACES_SEARCH_RADIUS_KM || '') || DEFAULT_SEARCH_RADIUS_KM;
+
+    const response = await fetch(
+        'https://places.googleapis.com/v1/places:searchNearby',
+        {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Goog-Api-Key': apiKey,
+                'X-Goog-FieldMask': 'places.id,places.displayName,places.location,places.types,places.rating,places.photos',
+            },
+            body: JSON.stringify({
+                locationRestriction: {
+                    circle: {
+                        center: { latitude: place.lat, longitude: place.lng },
+                        radius: radiusKm * 1000,
+                    },
+                },
+                includedTypes: DISCOVERED_TYPES,
+                maxResultCount: 12,
+            }),
+        }
+    );
+
+    if (!response.ok) {
+        const error = await response.text();
+        console.error('Google Places API error (nearby for my_place):', error);
+        return [];
+    }
+
+    type NearbyPlace = {
+        id: string;
+        displayName: { text: string };
+        location: { latitude: number; longitude: number };
+        types?: string[];
+        rating?: number;
+        photos?: { name: string }[];
+    };
+
+    const data = await response.json() as { places?: NearbyPlace[] };
+    if (!data.places || data.places.length === 0) {
+        return [];
+    }
+
+    const results: DiscoveredPlace[] = [];
+
+    for (const p of data.places) {
+        const photoRef = p.photos?.[0]?.name || null;
+        const photoUrl = photoRef
+            ? `https://places.googleapis.com/v1/${photoRef}/media?maxWidthPx=800&key=${apiKey}`
+            : null;
+
+        const distanceKm = haversineDistance(place.lat, place.lng, p.location.latitude, p.location.longitude);
+
+        await env.DB
+            .prepare(`
+                INSERT INTO discovered_places (
+                    near_place_id, google_place_id, name, lat, lng, rating, photo_url, types, distance_km, is_pinned, last_seen_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, datetime('now'))
+                ON CONFLICT(google_place_id) DO UPDATE SET
+                    name = excluded.name,
+                    lat = excluded.lat,
+                    lng = excluded.lng,
+                    rating = excluded.rating,
+                    photo_url = excluded.photo_url,
+                    types = excluded.types,
+                    distance_km = excluded.distance_km,
+                    last_seen_at = datetime('now'),
+                    -- preserve pinned flag if already pinned
+                    is_pinned = CASE WHEN discovered_places.is_pinned = 1 THEN 1 ELSE excluded.is_pinned END
+            `)
+            .bind(
+                place.id,
+                p.id,
+                p.displayName.text,
+                p.location.latitude,
+                p.location.longitude,
+                p.rating || null,
+                photoUrl,
+                p.types ? JSON.stringify(p.types) : null,
+                distanceKm,
+            )
+            .run();
+
+        results.push({
+            near_place_id: place.id,
+            google_place_id: p.id,
+            name: p.displayName.text,
+            lat: p.location.latitude,
+            lng: p.location.longitude,
+            rating: p.rating || null,
+            photo_url: photoUrl,
+            types: p.types ? JSON.stringify(p.types) : null,
+            distance_km: distanceKm,
+            is_pinned: 0,
+        });
+    }
+
+    return results;
+}
+
+async function getOrFetchNearby(env: Env, place: MyPlace): Promise<DiscoveredPlace[]> {
+    const existing = await env.DB
+        .prepare(`
+            SELECT * FROM discovered_places 
+            WHERE near_place_id = ?
+            ORDER BY rating DESC, distance_km ASC
+            LIMIT 12
+        `)
+        .bind(place.id)
+        .all<DiscoveredPlace>();
+
+    if (existing.results && existing.results.length > 0) {
+        return existing.results;
+    }
+
+    // No cached photos yet; fetch from Google Places API.
+    return fetchAndStoreNearbyPlaces(env, place);
+}
 
 /**
  * Handler: My Places API
@@ -31,6 +172,10 @@ export async function handleGetMyPlaces(env: Env): Promise<ForecastResponse[]> {
     const response: ForecastResponse[] = [];
 
     for (const place of places.results) {
+        // Ensure we have discovered places (with photos) for this location.
+        // If none are cached, fetch from Google Places API on-demand.
+        const nearby = await getOrFetchNearby(env, place);
+
         // Get 3-day forecast for this place
         const forecasts = await env.DB
             .prepare(`
@@ -42,21 +187,10 @@ export async function handleGetMyPlaces(env: Env): Promise<ForecastResponse[]> {
             .bind(place.id)
             .all<PlaceForecast>();
 
-        // Get nearby discovered places
-        const nearby = await env.DB
-            .prepare(`
-        SELECT * FROM discovered_places 
-        WHERE near_place_id = ?
-        ORDER BY rating DESC, distance_km ASC
-        LIMIT 10
-      `)
-            .bind(place.id)
-            .all<DiscoveredPlace>();
-
         response.push({
             place,
             forecasts: forecasts.results || [],
-            nearby: nearby.results || [],
+            nearby,
         });
     }
 
@@ -68,8 +202,8 @@ export async function handleGetMyPlaces(env: Env): Promise<ForecastResponse[]> {
  * Sync places from Google Sheet
  */
 export async function handleSyncFromSheet(env: Env): Promise<{ synced: number }> {
-    const synced = await syncPlacesFromSheet(env);
-    return { synced };
+    const { synced, deleted } = await syncPlacesFromSheet(env);
+    return { synced, deleted };
 }
 
 /**
@@ -201,21 +335,55 @@ export async function handleCheckNow(env: Env, placeId: number): Promise<PlaceFo
 }
 
 /**
+ * DELETE /api/my-places/:id
+ * Remove a place (sheet or pinned) entirely.
+ */
+export async function handleDeleteMyPlace(env: Env, placeId: number): Promise<{ success: boolean }> {
+    const place = await env.DB
+        .prepare('SELECT * FROM my_places WHERE id = ?')
+        .bind(placeId)
+        .first<MyPlace>();
+
+    if (!place) {
+        throw new Error('Place not found');
+    }
+
+    // If this place was sourced from the sheet, clear its row in the sheet.
+    if (place.sheet_row) {
+        await deletePlaceFromSheet(env, place.sheet_row);
+    }
+
+    // If this was a pinned place, clear the pinned flag on the discovered record.
+    if (place.pinned_from) {
+        await env.DB
+            .prepare('UPDATE discovered_places SET is_pinned = 0 WHERE google_place_id = ?')
+            .bind(place.pinned_from)
+            .run();
+    }
+
+    await env.DB
+        .prepare('DELETE FROM my_places WHERE id = ?')
+        .bind(placeId)
+        .run();
+
+    return { success: true };
+}
+
+/**
  * GET /api/my-places/:id/nearby
  * Get discovered places near a user location
  */
 export async function handleGetNearby(env: Env, placeId: number): Promise<DiscoveredPlace[]> {
-    const nearby = await env.DB
-        .prepare(`
-      SELECT * FROM discovered_places 
-      WHERE near_place_id = ?
-      ORDER BY rating DESC, distance_km ASC
-      LIMIT 20
-    `)
+    const place = await env.DB
+        .prepare('SELECT * FROM my_places WHERE id = ?')
         .bind(placeId)
-        .all<DiscoveredPlace>();
+        .first<MyPlace>();
 
-    return nearby.results || [];
+    if (!place) {
+        return [];
+    }
+
+    return getOrFetchNearby(env, place);
 }
 
 /**

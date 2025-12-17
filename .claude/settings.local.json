@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx wrangler:*)",
+      "Bash(npm run deploy:*)",
+      "Bash(npx vercel:*)",
+      "Bash(gh auth:*)",
+      "Bash(git rm:*)",
+      "Bash(where gh:*)",
+      "Bash(\"C:\\Program Files\\GitHub CLI\\gh.exe\" auth status)",
+      "Bash(\"C:\\Program Files\\GitHub CLI\\gh.exe\" auth login --web --git-protocol https)"
+    ]
+  }
+}

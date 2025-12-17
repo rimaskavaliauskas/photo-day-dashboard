@@ -92,6 +92,40 @@ async function getAccessToken(env: Env): Promise<string> {
 }
 
 /**
+ * Clear a specific row in the Google Sheet (non-destructive to other rows).
+ * This avoids reindexing sheet_row values by deleting the row contents instead of shifting rows.
+ */
+export async function deletePlaceFromSheet(env: Env, sheetRow: number): Promise<boolean> {
+  const sheetId = env.GOOGLE_SHEET_ID;
+  if (!sheetId) {
+    console.warn('GOOGLE_SHEET_ID not configured, cannot delete from sheet');
+    return false;
+  }
+
+  try {
+    const accessToken = await getAccessToken(env);
+    const range = `Sheet1!A${sheetRow}:D${sheetRow}`;
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(range)}:clear`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Failed to clear sheet row ${sheetRow}: ${error}`);
+    }
+
+    console.log(`Cleared sheet row ${sheetRow}`);
+    return true;
+  } catch (error) {
+    console.error('Error deleting place from sheet:', error);
+    return false;
+  }
+}
+
+/**
  * Read places from Google Sheet
  * Expected columns: name, lat, lng, notes
  */
@@ -194,11 +228,17 @@ export async function appendPlaceToSheet(env: Env, place: MyPlace): Promise<bool
 /**
  * Sync places from Google Sheet to database
  */
-export async function syncPlacesFromSheet(env: Env): Promise<number> {
+export async function syncPlacesFromSheet(env: Env): Promise<{ synced: number; deleted: number }> {
     const places = await readPlacesFromSheet(env);
+
+    // Track keys of sheet places to detect removals.
+    const sheetKeys = new Set<string>();
 
     let synced = 0;
     for (const place of places) {
+        const key = `${place.lat.toFixed(6)},${place.lng.toFixed(6)}`;
+        sheetKeys.add(key);
+
         try {
             await env.DB
                 .prepare(`
@@ -218,6 +258,60 @@ export async function syncPlacesFromSheet(env: Env): Promise<number> {
         }
     }
 
-    console.log(`Synced ${synced} places from sheet to database`);
-    return synced;
+    // Delete places that were removed from the Sheet (only those that came from sheet, not pinned).
+    let deleted = 0;
+    try {
+        const existing = await env.DB
+            .prepare(`
+          SELECT id, lat, lng FROM my_places
+        `)
+            .all<{ id: number; lat: number; lng: number }>();
+
+        for (const row of existing.results || []) {
+            const key = `${row.lat.toFixed(6)},${row.lng.toFixed(6)}`;
+            if (!sheetKeys.has(key)) {
+                // If this was a pinned place, clear the pinned flag on the discovered record.
+                try {
+                    const pinnedFrom = await env.DB
+                        .prepare('SELECT pinned_from FROM my_places WHERE id = ?')
+                        .bind(row.id)
+                        .first<{ pinned_from: string | null }>();
+                    if (pinnedFrom?.pinned_from) {
+                        await env.DB
+                            .prepare('UPDATE discovered_places SET is_pinned = 0 WHERE google_place_id = ?')
+                            .bind(pinnedFrom.pinned_from)
+                            .run();
+                    }
+                } catch (err) {
+                    console.warn('Warning: failed to clear is_pinned for removed place', err);
+                }
+
+                await env.DB
+                    .prepare('DELETE FROM my_places WHERE id = ?')
+                    .bind(row.id)
+                    .run();
+                deleted++;
+            }
+        }
+
+        // Safety cleanup: clear pinned flags that no longer have a corresponding my_place
+        const cleared = await env.DB
+            .prepare(`
+              UPDATE discovered_places
+              SET is_pinned = 0
+              WHERE is_pinned = 1
+                AND google_place_id NOT IN (
+                  SELECT pinned_from FROM my_places WHERE pinned_from IS NOT NULL
+                )
+            `)
+            .run();
+        if (cleared.success) {
+            console.log(`Cleared pinned flags for orphaned discoveries (rows affected: ${cleared.meta.changes ?? 0})`);
+        }
+    } catch (error) {
+        console.error('Error deleting removed sheet places:', error);
+    }
+
+    console.log(`Synced ${synced} places from sheet to database, deleted ${deleted} removed places`);
+    return { synced, deleted };
 }

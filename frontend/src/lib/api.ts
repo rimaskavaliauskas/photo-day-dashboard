@@ -359,9 +359,24 @@ export async function fetchMyPlaces(): Promise<MyPlaceWithData[]> {
 /**
  * Sync places from Google Sheet
  */
-export async function syncFromSheet(): Promise<{ synced: number }> {
+export async function syncFromSheet(): Promise<{ synced: number; deleted?: number }> {
   const response = await fetchWithTimeout(`${WORKER_URL}/api/my-places/sync`, {
     method: 'POST',
+  });
+
+  if (!response.ok) {
+    throw new Error(`API error: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Delete a place (sheet or pinned)
+ */
+export async function deleteMyPlace(placeId: number): Promise<{ success: boolean }> {
+  const response = await fetchWithTimeout(`${WORKER_URL}/api/my-places/${placeId}`, {
+    method: 'DELETE',
   });
 
   if (!response.ok) {
