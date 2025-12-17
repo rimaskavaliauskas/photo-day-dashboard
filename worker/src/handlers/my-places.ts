@@ -225,14 +225,23 @@ export async function handleCheckNow(env: Env, placeId: number): Promise<PlaceFo
     const url = new URL('https://api.open-meteo.com/v1/forecast');
     url.searchParams.set('latitude', place.lat.toString());
     url.searchParams.set('longitude', place.lng.toString());
-    url.searchParams.set('hourly', 'cloudcover');
+    url.searchParams.set('hourly', 'cloud_cover');
     url.searchParams.set('daily', 'sunrise,sunset');
     url.searchParams.set('timezone', 'auto');
     url.searchParams.set('forecast_days', '3');
 
-    const response = await fetch(url.toString());
+    let response: Response;
+    try {
+        response = await fetch(url.toString());
+    } catch (fetchErr) {
+        console.error('Weather fetch network error:', fetchErr);
+        throw new Error(`Failed to fetch weather: network error`);
+    }
+
     if (!response.ok) {
-        throw new Error('Failed to fetch weather');
+        const errorText = await response.text();
+        console.error('Weather API error:', response.status, errorText);
+        throw new Error(`Failed to fetch weather: ${response.status}`);
     }
 
     interface OpenMeteoResponse {
@@ -243,7 +252,7 @@ export async function handleCheckNow(env: Env, placeId: number): Promise<PlaceFo
         };
         hourly: {
             time: string[];
-            cloudcover: number[];
+            cloud_cover: number[];
         };
     }
 
@@ -263,8 +272,8 @@ export async function handleCheckNow(env: Env, placeId: number): Promise<PlaceFo
 
         // Find the hourly index for morning and evening
         const dayStart = i * 24;
-        const morningClouds = data.hourly.cloudcover[dayStart + goldenMorningHour] || 50;
-        const eveningClouds = data.hourly.cloudcover[dayStart + goldenEveningHour] || 50;
+        const morningClouds = data.hourly.cloud_cover[dayStart + goldenMorningHour] || 50;
+        const eveningClouds = data.hourly.cloud_cover[dayStart + goldenEveningHour] || 50;
 
         const forecast: PlaceForecast = {
             place_id: placeId,

@@ -248,7 +248,7 @@ export interface OpenMeteoResponse {
   hourly: {
     time: string[];
     temperature_2m: number[];
-    cloudcover: number[];
+    cloud_cover: number[];
     precipitation: number[];
     visibility: number[];
   };

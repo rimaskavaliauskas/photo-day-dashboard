@@ -136,7 +136,7 @@ async function syncWeatherAndSun(env: Env, lat: number, lng: number): Promise<vo
   const url = new URL('https://api.open-meteo.com/v1/forecast');
   url.searchParams.set('latitude', lat.toString());
   url.searchParams.set('longitude', lng.toString());
-  url.searchParams.set('hourly', 'temperature_2m,cloudcover,precipitation,visibility');
+  url.searchParams.set('hourly', 'temperature_2m,cloud_cover,precipitation,visibility');
   url.searchParams.set('daily', 'sunrise,sunset');
   url.searchParams.set('timezone', 'auto');
   url.searchParams.set('forecast_days', '3');
@@ -154,7 +154,7 @@ async function syncWeatherAndSun(env: Env, lat: number, lng: number): Promise<vo
   const hourlyTimes = data.hourly.time;
   for (let i = 0; i < hourlyTimes.length; i++) {
     const conditions = {
-      clouds: data.hourly.cloudcover[i],
+      clouds: data.hourly.cloud_cover[i],
       precip: data.hourly.precipitation[i],
       visibility: data.hourly.visibility[i] / 1000, // Convert m to km
       temp: data.hourly.temperature_2m[i],
