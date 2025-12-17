@@ -17,10 +17,6 @@ const nextConfig = {
       },
     ],
   },
-  env: {
-    // Empty string means use relative path (proxied by Next.js)
-    NEXT_PUBLIC_WORKER_URL: '',
-  },
   async rewrites() {
     const workerUrl = process.env.NEXT_PUBLIC_WORKER_URL || 'http://127.0.0.1:8787';
     return [

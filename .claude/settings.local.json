@@ -12,7 +12,8 @@
       "Bash(npm run build:*)",
       "Bash(git add:*)",
       "Bash(git commit -m \"$(cat <<''EOF''\nFix TypeScript build errors for Vercel deployment\n\n- Remove invalid clockWise prop from RadialBar component\n- Remove unused ChannelCard component with missing type\n- Remove invalid style prop from ResponsiveContainer\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n)\")",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(git commit:*)"
     ]
   }
 }
