@@ -10,6 +10,7 @@ import {
     formatTimeRange,
     formatDate,
 } from '@/lib/api';
+import { ChatPanel } from './ChatPanel';
 
 interface Props {
     placeData: MyPlaceWithData;
@@ -27,6 +28,7 @@ export function PlaceRow({ placeData, onCheckNow, isChecking, onDelete, isDeleti
     const photos = nearby.filter(p => p.photo_url);
     const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
     const [pinningId, setPinningId] = useState<number | null>(null);
+    const [chatOpen, setChatOpen] = useState(false);
 
     const openLightbox = useCallback((idx: number) => setLightboxIndex(idx), []);
     const closeLightbox = useCallback(() => setLightboxIndex(null), []);
@@ -79,6 +81,13 @@ export function PlaceRow({ placeData, onCheckNow, isChecking, onDelete, isDeleti
                     )}
                 </div>
                 <div className="place-row-actions">
+                    <button
+                        className="btn-ask-ai-small"
+                        onClick={() => setChatOpen(true)}
+                        title="Ask AI about this place"
+                    >
+                        ⚡ Ask AI
+                    </button>
                     <button
                         className="btn-check-now-small"
                         onClick={() => onCheckNow(place.id)}
@@ -232,6 +241,14 @@ export function PlaceRow({ placeData, onCheckNow, isChecking, onDelete, isDeleti
                     </div>
                 </div>
             )}
+
+            {/* AI Chat Panel for this place */}
+            <ChatPanel
+                isOpen={chatOpen}
+                onClose={() => setChatOpen(false)}
+                placeId={place.id}
+                placeName={place.name}
+            />
         </div>
     );
 }

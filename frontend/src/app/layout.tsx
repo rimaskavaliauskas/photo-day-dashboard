@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { ChatButton } from '@/components/ChatButton';
 
 export const metadata: Metadata = {
   title: 'Photo Day Dashboard',
@@ -38,6 +39,9 @@ export default function RootLayout({
         <footer className="border-t border-zinc-800 mt-12 py-6 text-center text-sm text-zinc-600">
           <p>Photo Day Dashboard • Built with Next.js + Cloudflare</p>
         </footer>
+
+        {/* Global AI Chat Button */}
+        <ChatButton />
       </body>
     </html>
   );

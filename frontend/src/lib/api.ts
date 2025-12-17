@@ -446,3 +446,44 @@ export async function fetchVideos(): Promise<YouTubeVideo[]> {
   const data = await response.json();
   return data.videos || [];
 }
+
+// =============================================================================
+// AI Chat Types & Functions
+// =============================================================================
+
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface ChatRequest {
+  message: string;
+  placeId?: number;
+  includeVideos?: boolean;
+  history?: ChatMessage[];
+}
+
+export interface ChatResponseData {
+  response: string;
+  model: 'workers-ai' | 'claude';
+  tokensUsed?: number;
+}
+
+/**
+ * Send a chat message to the AI assistant
+ */
+export async function sendChatMessage(request: ChatRequest): Promise<ChatResponseData> {
+  const response = await fetchWithTimeout(`${WORKER_URL}/api/ai/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+    timeout: 60000,  // AI responses can take longer
+  } as RequestInit & { timeout?: number });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error((errorData as { error?: string }).error || `Chat error: ${response.status}`);
+  }
+
+  return response.json();
+}

@@ -1,4 +1,4 @@
-import { Env } from './types';
+import { Env, ChatRequest } from './types';
 import { handleDashboard } from './handlers/dashboard';
 import { handleSetLocation } from './handlers/set-location';
 import {
@@ -9,6 +9,7 @@ import {
   handlePinPlace,
   handleDeleteMyPlace,
 } from './handlers/my-places';
+import { handleAIChat } from './handlers/ai-chat';
 import { runPlacesAndWeatherSync } from './cron/places-and-weather';
 import { runYouTubeSync } from './cron/youtube-sync';
 import { syncPlacesFromSheet } from './lib/sheets-sync';
@@ -166,6 +167,17 @@ export default {
       if (pinMatch && request.method === 'POST') {
         const discoveredId = parseInt(pinMatch[1], 10);
         const result = await handlePinPlace(env, discoveredId);
+        return jsonResponse(result);
+      }
+
+      // =======================================================================
+      // AI Chat Route
+      // =======================================================================
+
+      // Route: POST /api/ai/chat - AI photography assistant
+      if (path === '/api/ai/chat' && request.method === 'POST') {
+        const body = await request.json() as ChatRequest;
+        const result = await handleAIChat(env, body);
         return jsonResponse(result);
       }
 

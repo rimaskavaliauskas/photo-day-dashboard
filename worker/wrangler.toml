@@ -8,6 +8,10 @@ binding = "DB"
 database_name = "photo-day-db"
 database_id = "f274b979-dfad-4d6d-a7fb-5e3b942a0449"
 
+# Workers AI binding
+[ai]
+binding = "AI"
+
 # Scheduled cron triggers
 [triggers]
 crons = [

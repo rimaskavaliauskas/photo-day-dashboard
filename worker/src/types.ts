@@ -6,12 +6,16 @@ export interface Env {
   // D1 Database
   DB: D1Database;
 
+  // Workers AI binding
+  AI: Ai;
+
   // Secrets (set via wrangler secret put)
   GOOGLE_PLACES_API_KEY: string;
   YOUTUBE_API_KEY: string;
   GOOGLE_SERVICE_ACCOUNT_EMAIL: string;
   GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: string;
   GOOGLE_SHEET_ID: string;
+  ANTHROPIC_API_KEY?: string;  // Optional: Claude fallback
 
   // Environment variables (from wrangler.toml)
   DEFAULT_LAT: string;
@@ -276,4 +280,26 @@ export interface YouTubeSearchItem {
       default?: { url: string };
     };
   };
+}
+
+// =============================================================================
+// AI Chat Types
+// =============================================================================
+
+export interface ChatMessage {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+}
+
+export interface ChatRequest {
+  message: string;
+  placeId?: number;
+  includeVideos?: boolean;
+  history?: ChatMessage[];
+}
+
+export interface ChatResponse {
+  response: string;
+  model: 'workers-ai' | 'claude';
+  tokensUsed?: number;
 }
