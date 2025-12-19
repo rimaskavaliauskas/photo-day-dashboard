@@ -13,7 +13,16 @@
       "Bash(git add:*)",
       "Bash(git commit -m \"$(cat <<''EOF''\nFix TypeScript build errors for Vercel deployment\n\n- Remove invalid clockWise prop from RadialBar component\n- Remove unused ChannelCard component with missing type\n- Remove invalid style prop from ResponsiveContainer\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n)\")",
       "Bash(git push:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(curl:*)",
+      "Bash(powershell -Command \"Start-Sleep -Seconds 30; curl -s -X POST ''https://photo-day-worker.rimas-kavaliauskas.workers.dev/api/my-places/1/check-now''\")",
+      "Bash(powershell -Command \"Start-Sleep -Seconds 30; Invoke-RestMethod -Uri ''https://photo-day-worker.rimas-kavaliauskas.workers.dev/api/my-places/1/check-now'' -Method POST\")",
+      "Bash(claude mcp add tavily -- npx -y @anthropic/mcp-tavily-server)",
+      "Bash(claude mcp:*)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:www.weatherapi.com)",
+      "Bash(npx tsc:*)"
     ]
   }
 }
