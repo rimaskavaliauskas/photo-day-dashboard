@@ -11,6 +11,8 @@ import {
     formatDate,
 } from '@/lib/api';
 import { ChatPanel } from './ChatPanel';
+import { GoldenHourTimeline } from './GoldenHourTimeline';
+import { ConditionsGauge } from './ConditionsGauge';
 
 interface Props {
     placeData: MyPlaceWithData;
@@ -111,11 +113,31 @@ export function PlaceRow({ placeData, onCheckNow, isChecking, onDelete, isDeleti
                 <div className="place-row-weather">
                     <h4 className="weather-widget-title">🌤️ Weather Forecast</h4>
                     {forecasts.length > 0 ? (
-                        <div className="weather-days">
-                            {forecasts.slice(0, 3).map((forecast) => (
-                                <ForecastDay key={forecast.date} forecast={forecast} />
-                            ))}
-                        </div>
+                        <>
+                            {/* Golden Hour Timeline */}
+                            <div className="weather-timeline-wrapper">
+                                <GoldenHourTimeline forecasts={forecasts} showDays={3} />
+                            </div>
+
+                            {/* Conditions Gauge for today */}
+                            {forecasts[0] && (
+                                <div className="weather-gauge-wrapper">
+                                    <ConditionsGauge
+                                        clouds={(forecasts[0].morning_clouds ?? 0 + (forecasts[0].evening_clouds ?? 0)) / 2}
+                                        visibility={null}
+                                        precipitation={null}
+                                        score={Math.round(100 - ((forecasts[0].morning_clouds ?? 50) + (forecasts[0].evening_clouds ?? 50)) / 2)}
+                                    />
+                                </div>
+                            )}
+
+                            {/* Day-by-day forecast cards */}
+                            <div className="weather-days">
+                                {forecasts.slice(0, 3).map((forecast) => (
+                                    <ForecastDay key={forecast.date} forecast={forecast} />
+                                ))}
+                            </div>
+                        </>
                     ) : (
                         <div className="weather-empty">
                             <p>Click "Check Weather" to get forecast</p>
@@ -254,43 +276,119 @@ export function PlaceRow({ placeData, onCheckNow, isChecking, onDelete, isDeleti
 }
 
 function ForecastDay({ forecast }: { forecast: PlaceForecast }) {
-    const morningIcon = forecast.sky_open_morning ? '☀️' : '☁️';
-    const eveningIcon = forecast.sky_open_evening ? '☀️' : '☁️';
+    // Calculate overall score based on cloud coverage (lower is better)
+    const morningClouds = forecast.morning_clouds ?? 50;
+    const eveningClouds = forecast.evening_clouds ?? 50;
+    const avgClouds = (morningClouds + eveningClouds) / 2;
+    const score = Math.max(0, Math.round(100 - avgClouds));
+
+    const getScoreColor = (s: number) => {
+        if (s >= 70) return '#22c55e';
+        if (s >= 50) return '#eab308';
+        return '#ef4444';
+    };
+
+    const getScoreLabel = (s: number) => {
+        if (s >= 80) return 'Excellent';
+        if (s >= 70) return 'Great';
+        if (s >= 50) return 'Good';
+        if (s >= 30) return 'Fair';
+        return 'Poor';
+    };
+
+    const formatTimeOnly = (isoString: string | null): string => {
+        if (!isoString) return '--:--';
+        const date = new Date(isoString);
+        return date.toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true,
+        });
+    };
 
     return (
-        <div className="forecast-day-card">
-            <div className="forecast-day-date">{formatDate(forecast.date)}</div>
-            
-            <div className="forecast-day-grid">
-                {/* Golden Hours */}
-                <div className="forecast-hour-block golden">
-                    <div className="hour-label">🌅 Golden AM</div>
-                    <div className="hour-time">
-                        {formatTimeRange(forecast.golden_morning_start, forecast.golden_morning_end)}
-                    </div>
-                    <div className="hour-sky">{morningIcon} {forecast.morning_clouds ?? '--'}%</div>
+        <div className="forecast-day-card enhanced">
+            {/* Header with date and score */}
+            <div className="forecast-day-header">
+                <div className="forecast-day-date">{formatDate(forecast.date)}</div>
+                <div
+                    className="forecast-day-score"
+                    style={{ backgroundColor: getScoreColor(score) }}
+                    title={`Photo conditions: ${getScoreLabel(score)}`}
+                >
+                    {score}
                 </div>
+            </div>
 
-                <div className="forecast-hour-block golden">
-                    <div className="hour-label">🌇 Golden PM</div>
-                    <div className="hour-time">
-                        {formatTimeRange(forecast.golden_evening_start, forecast.golden_evening_end)}
-                    </div>
-                    <div className="hour-sky">{eveningIcon} {forecast.evening_clouds ?? '--'}%</div>
+            {/* Sunrise/Sunset bar */}
+            <div className="forecast-sun-times">
+                <div className="sun-time sunrise">
+                    <span className="sun-icon">☀️</span>
+                    <span className="sun-label">Rise</span>
+                    <span className="sun-value">{formatTimeOnly(forecast.sunrise)}</span>
                 </div>
+                <div className="sun-divider"></div>
+                <div className="sun-time sunset">
+                    <span className="sun-icon">🌅</span>
+                    <span className="sun-label">Set</span>
+                    <span className="sun-value">{formatTimeOnly(forecast.sunset)}</span>
+                </div>
+            </div>
 
-                {/* Blue Hours */}
-                <div className="forecast-hour-block blue">
-                    <div className="hour-label">🌌 Blue AM</div>
-                    <div className="hour-time">
-                        {formatTimeRange(forecast.blue_morning_start, forecast.blue_morning_end)}
+            {/* Morning Section */}
+            <div className="forecast-period-section">
+                <div className="period-header morning">
+                    <span className="period-title">Morning</span>
+                    <div className="cloud-indicator">
+                        <div
+                            className="cloud-bar"
+                            style={{
+                                width: `${100 - morningClouds}%`,
+                                backgroundColor: morningClouds <= 30 ? '#22c55e' : morningClouds <= 60 ? '#eab308' : '#ef4444'
+                            }}
+                        />
+                    </div>
+                    <span className="cloud-percent">{100 - morningClouds}% clear</span>
+                </div>
+                <div className="period-times">
+                    <div className="time-block golden">
+                        <span className="time-icon">🌅</span>
+                        <span className="time-label">Golden</span>
+                        <span className="time-value">{formatTimeRange(forecast.golden_morning_start, forecast.golden_morning_end)}</span>
+                    </div>
+                    <div className="time-block blue">
+                        <span className="time-icon">🌌</span>
+                        <span className="time-label">Blue</span>
+                        <span className="time-value">{formatTimeRange(forecast.blue_morning_start, forecast.blue_morning_end)}</span>
                     </div>
                 </div>
+            </div>
 
-                <div className="forecast-hour-block blue">
-                    <div className="hour-label">🌃 Blue PM</div>
-                    <div className="hour-time">
-                        {formatTimeRange(forecast.blue_evening_start, forecast.blue_evening_end)}
+            {/* Evening Section */}
+            <div className="forecast-period-section">
+                <div className="period-header evening">
+                    <span className="period-title">Evening</span>
+                    <div className="cloud-indicator">
+                        <div
+                            className="cloud-bar"
+                            style={{
+                                width: `${100 - eveningClouds}%`,
+                                backgroundColor: eveningClouds <= 30 ? '#22c55e' : eveningClouds <= 60 ? '#eab308' : '#ef4444'
+                            }}
+                        />
+                    </div>
+                    <span className="cloud-percent">{100 - eveningClouds}% clear</span>
+                </div>
+                <div className="period-times">
+                    <div className="time-block golden">
+                        <span className="time-icon">🌇</span>
+                        <span className="time-label">Golden</span>
+                        <span className="time-value">{formatTimeRange(forecast.golden_evening_start, forecast.golden_evening_end)}</span>
+                    </div>
+                    <div className="time-block blue">
+                        <span className="time-icon">🌃</span>
+                        <span className="time-label">Blue</span>
+                        <span className="time-value">{formatTimeRange(forecast.blue_evening_start, forecast.blue_evening_end)}</span>
                     </div>
                 </div>
             </div>

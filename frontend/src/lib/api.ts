@@ -487,3 +487,50 @@ export async function sendChatMessage(request: ChatRequest): Promise<ChatRespons
 
   return response.json();
 }
+
+// =============================================================================
+// AI Discover Types & Functions
+// =============================================================================
+
+export interface AIDiscoverRequest {
+  placeIds?: number[];
+  maxResults?: number;
+}
+
+export interface DiscoveredRecommendation {
+  id: string;
+  name: string;
+  description: string;
+  whyPhotogenic: string;
+  testimonials: string;
+  sourceUrls: string[];
+  nearPlaceId: number;
+  nearPlaceName: string;
+  confidenceScore: number;
+}
+
+export interface AIDiscoverResponse {
+  recommendations: DiscoveredRecommendation[];
+  searchedPlaces: { id: number; name: string }[];
+  model: 'workers-ai' | 'claude';
+  processingTime: number;
+}
+
+/**
+ * Discover photogenic places using Tavily + AI analysis
+ */
+export async function discoverPlaces(request: AIDiscoverRequest = {}): Promise<AIDiscoverResponse> {
+  const response = await fetchWithTimeout(`${WORKER_URL}/api/ai/discover`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+    timeout: 90000,  // AI + Tavily can take longer
+  } as RequestInit & { timeout?: number });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error((errorData as { error?: string }).error || `Discover error: ${response.status}`);
+  }
+
+  return response.json();
+}

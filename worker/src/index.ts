@@ -1,4 +1,4 @@
-import { Env, ChatRequest } from './types';
+import { Env, ChatRequest, AIDiscoverRequest } from './types';
 import { handleDashboard } from './handlers/dashboard';
 import { handleSetLocation } from './handlers/set-location';
 import {
@@ -10,6 +10,7 @@ import {
   handleDeleteMyPlace,
 } from './handlers/my-places';
 import { handleAIChat } from './handlers/ai-chat';
+import { handleAIDiscover } from './handlers/ai-discover';
 import { runPlacesAndWeatherSync } from './cron/places-and-weather';
 import { runYouTubeSync } from './cron/youtube-sync';
 import { syncPlacesFromSheet } from './lib/sheets-sync';
@@ -26,18 +27,25 @@ function getConfigStatus(env: Env) {
     env.GOOGLE_SHEET_ID
   );
   const tasksSheetConfigured = Boolean(env.TASKS_SHEET_URL);
+  const tavilyConfigured = Boolean(env.TAVILY_API_KEY);
+  const weatherApiConfigured = Boolean(env.WEATHER_API_KEY);
 
   const warnings: string[] = [];
   if (!placesConfigured) warnings.push('GOOGLE_PLACES_API_KEY missing – skipping place discovery');
   if (!youtubeConfigured) warnings.push('YouTube sync disabled – YOUTUBE_API_KEY or channels missing');
   if (!sheetConfigured) warnings.push('Sheets credentials missing – place sync/pinning disabled');
   if (!tasksSheetConfigured) warnings.push('TASKS_SHEET_URL missing – tasks sync disabled');
+  if (!tavilyConfigured) warnings.push('TAVILY_API_KEY missing – AI Discover disabled');
+  if (!weatherApiConfigured) warnings.push('WEATHER_API_KEY missing – using Open-Meteo (may hit rate limits on shared IPs)');
 
   return {
     placesConfigured,
     youtubeConfigured,
     sheetConfigured,
     tasksSheetConfigured,
+    tavilyConfigured,
+    weatherApiConfigured,
+    weatherProvider: weatherApiConfigured ? 'WeatherAPI.com' : 'Open-Meteo',
     defaultLat: env.DEFAULT_LAT,
     defaultLng: env.DEFAULT_LNG,
     radiusKm: env.DEFAULT_RADIUS_KM,
@@ -178,6 +186,13 @@ export default {
       if (path === '/api/ai/chat' && request.method === 'POST') {
         const body = await request.json() as ChatRequest;
         const result = await handleAIChat(env, body);
+        return jsonResponse(result);
+      }
+
+      // Route: POST /api/ai/discover - AI-powered place discovery via Tavily
+      if (path === '/api/ai/discover' && request.method === 'POST') {
+        const body = await request.json() as AIDiscoverRequest;
+        const result = await handleAIDiscover(env, body);
         return jsonResponse(result);
       }
 

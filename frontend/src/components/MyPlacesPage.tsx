@@ -14,6 +14,7 @@ import { PlaceRow } from './PlaceRow';
 import { DiscoveredPlaces } from './DiscoveredPlaces';
 import { VideosGrid } from './VideosGrid';
 import { PlacesGrid } from './PlacesGrid';
+import { AIDiscoverModal } from './AIDiscoverModal';
 
 interface Props {
     initialPlaces: MyPlaceWithData[];
@@ -22,17 +23,18 @@ interface Props {
     currentLocation?: { lat: number; lng: number; source: string };
 }
 
-export function MyPlacesPage({ 
-    initialPlaces, 
-    initialVideos, 
+export function MyPlacesPage({
+    initialPlaces,
+    initialVideos,
     nearbyPlaces = [],
-    currentLocation 
+    currentLocation
 }: Props) {
     const [places, setPlaces] = useState(initialPlaces);
     const [videos] = useState(initialVideos);
     const [syncing, setSyncing] = useState(false);
     const [checkingId, setCheckingId] = useState<number | null>(null);
     const [deletingId, setDeletingId] = useState<number | null>(null);
+    const [discoverOpen, setDiscoverOpen] = useState(false);
 
     const handleRefresh = useCallback(async () => {
         try {
@@ -103,13 +105,23 @@ export function MyPlacesPage({
             <section className="section">
                 <div className="section-header">
                     <h2 className="section-title">📍 My Photo Locations</h2>
-                    <button
-                        className="btn-sync"
-                        onClick={handleSync}
-                        disabled={syncing}
-                    >
-                        {syncing ? '⏳ Syncing...' : '🔄 Sync from Sheet'}
-                    </button>
+                    <div className="section-actions">
+                        <button
+                            className="btn-discover"
+                            onClick={() => setDiscoverOpen(true)}
+                            disabled={sheetPlaces.length === 0}
+                            title={sheetPlaces.length === 0 ? 'Add places first to discover nearby locations' : 'Find photogenic places near your locations'}
+                        >
+                            🔮 AI Discover
+                        </button>
+                        <button
+                            className="btn-sync"
+                            onClick={handleSync}
+                            disabled={syncing}
+                        >
+                            {syncing ? '⏳ Syncing...' : '🔄 Sync from Sheet'}
+                        </button>
+                    </div>
                 </div>
 
                 {sheetPlaces.length === 0 ? (
@@ -203,6 +215,14 @@ export function MyPlacesPage({
                     </p>
                 </div>
             )}
+
+            {/* AI Discover Modal */}
+            <AIDiscoverModal
+                isOpen={discoverOpen}
+                onClose={() => setDiscoverOpen(false)}
+                placeIds={sheetPlaces.map(p => p.place.id)}
+                onPlaceAdded={handleRefresh}
+            />
         </div>
     );
 }

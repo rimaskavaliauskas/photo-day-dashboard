@@ -16,6 +16,8 @@ export interface Env {
   GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: string;
   GOOGLE_SHEET_ID: string;
   ANTHROPIC_API_KEY?: string;  // Optional: Claude fallback
+  TAVILY_API_KEY?: string;     // For AI Discover feature
+  WEATHER_API_KEY?: string;    // WeatherAPI.com API key
 
   // Environment variables (from wrangler.toml)
   DEFAULT_LAT: string;
@@ -247,7 +249,7 @@ export interface GooglePlace {
   photos?: { name: string }[];
 }
 
-// Open-Meteo Weather API response
+// Open-Meteo Weather API response (legacy, kept for reference)
 export interface OpenMeteoResponse {
   hourly: {
     time: string[];
@@ -261,6 +263,51 @@ export interface OpenMeteoResponse {
     sunrise: string[];
     sunset: string[];
   };
+}
+
+// WeatherAPI.com response types
+export interface WeatherAPIResponse {
+  location: {
+    name: string;
+    lat: number;
+    lon: number;
+    tz_id: string;
+    localtime: string;
+  };
+  forecast: {
+    forecastday: WeatherAPIForecastDay[];
+  };
+}
+
+export interface WeatherAPIForecastDay {
+  date: string;
+  date_epoch: number;
+  day: {
+    maxtemp_c: number;
+    mintemp_c: number;
+    avgtemp_c: number;
+    totalprecip_mm: number;
+    avgvis_km: number;
+    avghumidity: number;
+  };
+  astro: {
+    sunrise: string;
+    sunset: string;
+    moonrise: string;
+    moonset: string;
+  };
+  hour: WeatherAPIHour[];
+}
+
+export interface WeatherAPIHour {
+  time: string;
+  time_epoch: number;
+  temp_c: number;
+  cloud: number;
+  precip_mm: number;
+  vis_km: number;
+  humidity: number;
+  feelslike_c: number;
 }
 
 // YouTube Data API response
@@ -302,4 +349,46 @@ export interface ChatResponse {
   response: string;
   model: 'workers-ai' | 'claude';
   tokensUsed?: number;
+}
+
+// =============================================================================
+// AI Discover Types
+// =============================================================================
+
+export interface TavilySearchResult {
+  title: string;
+  url: string;
+  content: string;
+  score: number;
+  published_date?: string;
+}
+
+export interface TavilyResponse {
+  query: string;
+  answer?: string;
+  results: TavilySearchResult[];
+}
+
+export interface AIDiscoverRequest {
+  placeIds?: number[];
+  maxResults?: number;
+}
+
+export interface DiscoveredRecommendation {
+  id: string;
+  name: string;
+  description: string;
+  whyPhotogenic: string;
+  testimonials: string;
+  sourceUrls: string[];
+  nearPlaceId: number;
+  nearPlaceName: string;
+  confidenceScore: number;
+}
+
+export interface AIDiscoverResponse {
+  recommendations: DiscoveredRecommendation[];
+  searchedPlaces: { id: number; name: string }[];
+  model: 'workers-ai' | 'claude';
+  processingTime: number;
 }

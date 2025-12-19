@@ -1,4 +1,4 @@
-import { Env, MyPlace, DiscoveredPlace, PlaceForecast } from '../types';
+import { Env, MyPlace, DiscoveredPlace, PlaceForecast, WeatherAPIResponse } from '../types';
 import { syncPlacesFromSheet, appendPlaceToSheet, deletePlaceFromSheet } from '../lib/sheets-sync';
 import { calculateSunWindows, toISOString } from '../lib/sun';
 import { haversineDistance } from '../lib/geo';
@@ -221,7 +221,146 @@ export async function handleCheckNow(env: Env, placeId: number): Promise<PlaceFo
         throw new Error('Place not found');
     }
 
-    // Fetch 3-day weather from Open-Meteo
+    // Use WeatherAPI.com if API key is available, otherwise fall back to Open-Meteo
+    if (env.WEATHER_API_KEY) {
+        return await checkNowWithWeatherAPI(env, placeId, place);
+    } else {
+        return await checkNowWithOpenMeteo(env, placeId, place);
+    }
+}
+
+/**
+ * Parse WeatherAPI.com time format ("06:45 AM") to Date
+ */
+function parseWeatherAPITime(dateStr: string, timeStr: string): Date {
+    const [time, period] = timeStr.split(' ');
+    const [hourStr, minuteStr] = time.split(':');
+    let hour = parseInt(hourStr, 10);
+    const minute = parseInt(minuteStr, 10);
+
+    if (period === 'PM' && hour !== 12) {
+        hour += 12;
+    } else if (period === 'AM' && hour === 12) {
+        hour = 0;
+    }
+
+    return new Date(`${dateStr}T${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:00`);
+}
+
+/**
+ * Fetch weather using WeatherAPI.com (recommended - uses API key authentication)
+ */
+async function checkNowWithWeatherAPI(env: Env, placeId: number, place: MyPlace): Promise<PlaceForecast[]> {
+    const url = `https://api.weatherapi.com/v1/forecast.json?key=${env.WEATHER_API_KEY}&q=${place.lat},${place.lng}&days=3&aqi=no&alerts=no`;
+
+    let response: Response;
+    try {
+        response = await fetch(url);
+    } catch (fetchErr) {
+        console.error('WeatherAPI.com fetch network error:', fetchErr);
+        throw new Error(`Failed to fetch weather from WeatherAPI: network error`);
+    }
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        console.error('WeatherAPI.com error:', response.status, errorText);
+        // Don't fall back to Open-Meteo anymore - it has rate limit issues
+        // Instead, throw a more descriptive error
+        throw new Error(`WeatherAPI.com error: ${response.status} - ${errorText}`);
+    }
+
+    const data = (await response.json()) as WeatherAPIResponse;
+    const forecasts: PlaceForecast[] = [];
+
+    // Process each day
+    for (const day of data.forecast.forecastday) {
+        const sunrise = parseWeatherAPITime(day.date, day.astro.sunrise);
+        const sunset = parseWeatherAPITime(day.date, day.astro.sunset);
+        const sunTimes = calculateSunWindows(sunrise, sunset);
+
+        // Find cloud cover during golden hours
+        const goldenMorningHour = sunrise.getHours();
+        const goldenEveningHour = sunset.getHours();
+
+        // Find cloud cover for morning and evening from hourly data
+        const morningHourData = day.hour.find(h => new Date(h.time).getHours() === goldenMorningHour);
+        const eveningHourData = day.hour.find(h => new Date(h.time).getHours() === goldenEveningHour);
+
+        const morningClouds = morningHourData?.cloud || 50;
+        const eveningClouds = eveningHourData?.cloud || 50;
+
+        const forecast: PlaceForecast = {
+            place_id: placeId,
+            date: day.date,
+            sunrise: toISOString(sunrise),
+            sunset: toISOString(sunset),
+            golden_morning_start: toISOString(sunTimes.goldenMorningStart),
+            golden_morning_end: toISOString(sunTimes.goldenMorningEnd),
+            golden_evening_start: toISOString(sunTimes.goldenEveningStart),
+            golden_evening_end: toISOString(sunTimes.goldenEveningEnd),
+            blue_morning_start: toISOString(sunTimes.blueMorningStart),
+            blue_morning_end: toISOString(sunTimes.blueMorningEnd),
+            blue_evening_start: toISOString(sunTimes.blueEveningStart),
+            blue_evening_end: toISOString(sunTimes.blueEveningEnd),
+            morning_clouds: morningClouds,
+            evening_clouds: eveningClouds,
+            sky_open_morning: morningClouds < 30 ? 1 : 0,
+            sky_open_evening: eveningClouds < 30 ? 1 : 0,
+        };
+
+        // Upsert to database
+        await env.DB
+            .prepare(`
+        INSERT INTO place_forecasts (
+          place_id, date, sunrise, sunset,
+          golden_morning_start, golden_morning_end,
+          golden_evening_start, golden_evening_end,
+          blue_morning_start, blue_morning_end,
+          blue_evening_start, blue_evening_end,
+          morning_clouds, evening_clouds,
+          sky_open_morning, sky_open_evening,
+          updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+        ON CONFLICT(place_id, date) DO UPDATE SET
+          sunrise = excluded.sunrise,
+          sunset = excluded.sunset,
+          golden_morning_start = excluded.golden_morning_start,
+          golden_morning_end = excluded.golden_morning_end,
+          golden_evening_start = excluded.golden_evening_start,
+          golden_evening_end = excluded.golden_evening_end,
+          blue_morning_start = excluded.blue_morning_start,
+          blue_morning_end = excluded.blue_morning_end,
+          blue_evening_start = excluded.blue_evening_start,
+          blue_evening_end = excluded.blue_evening_end,
+          morning_clouds = excluded.morning_clouds,
+          evening_clouds = excluded.evening_clouds,
+          sky_open_morning = excluded.sky_open_morning,
+          sky_open_evening = excluded.sky_open_evening,
+          updated_at = datetime('now')
+      `)
+            .bind(
+                forecast.place_id, forecast.date,
+                forecast.sunrise, forecast.sunset,
+                forecast.golden_morning_start, forecast.golden_morning_end,
+                forecast.golden_evening_start, forecast.golden_evening_end,
+                forecast.blue_morning_start, forecast.blue_morning_end,
+                forecast.blue_evening_start, forecast.blue_evening_end,
+                forecast.morning_clouds, forecast.evening_clouds,
+                forecast.sky_open_morning, forecast.sky_open_evening
+            )
+            .run();
+
+        forecasts.push(forecast);
+    }
+
+    return forecasts;
+}
+
+/**
+ * Fetch weather using Open-Meteo (fallback - uses IP-based rate limiting)
+ */
+async function checkNowWithOpenMeteo(env: Env, placeId: number, place: MyPlace): Promise<PlaceForecast[]> {
     const url = new URL('https://api.open-meteo.com/v1/forecast');
     url.searchParams.set('latitude', place.lat.toString());
     url.searchParams.set('longitude', place.lng.toString());

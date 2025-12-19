@@ -46,3 +46,4 @@ name = "photo-day-worker"
 # - GOOGLE_SERVICE_ACCOUNT_EMAIL
 # - GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY
 # - GOOGLE_SHEET_ID
+# - WEATHER_API_KEY (WeatherAPI.com - get free key at https://www.weatherapi.com/signup.aspx)
